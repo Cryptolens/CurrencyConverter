@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Globalization;
+using System.Net;
+using System.Text;
 
 namespace Cryptolens.CurrencyConverter
 {
@@ -9,27 +12,47 @@ namespace Cryptolens.CurrencyConverter
         /// </summary>
         public static object GetSEKExchangeRates()
         {
-            var client = new ExRateAPI.SweaWebServicePortTypeClient();
-            var res = client.getLatestInterestAndExchangeRatesAsync(ExRateAPI.LanguageType.en, new string[] { "SEKUSDPMI", "SEKEURPMI" }).Result;
 
-            var result = new CurrencyResponse();
+            var today = DateTime.UtcNow;
 
-            if(((ExRateAPI.ResultSeries)((ExRateAPI.ResultGroup)res.@return.groups.GetValue(0)).series.GetValue(1)).seriesid.Trim(' ') == "SEKUSDPMI")
+            if(today.DayOfWeek == DayOfWeek.Saturday)
             {
-                result.USD = ((ExRateAPI.ResultRow)((ExRateAPI.ResultSeries)((ExRateAPI.ResultGroup)res.@return.groups.GetValue(0)).series.GetValue(1)).resultrows.GetValue(0)).value;
+                today = today.AddDays(-1);
             }
-            else if ((((ExRateAPI.ResultSeries)((ExRateAPI.ResultGroup)res.@return.groups.GetValue(0)).series.GetValue(1)).seriesid.Trim(' ') == "SEKEURPMI"))
+            if(today.DayOfWeek == DayOfWeek.Sunday)
             {
-                result.EUR = ((ExRateAPI.ResultRow)((ExRateAPI.ResultSeries)((ExRateAPI.ResultGroup)res.@return.groups.GetValue(0)).series.GetValue(1)).resultrows.GetValue(0)).value;
+                today = today.AddDays(-2);
             }
 
-            if (((ExRateAPI.ResultSeries)((ExRateAPI.ResultGroup)res.@return.groups.GetValue(0)).series.GetValue(0)).seriesid.Trim(' ') == "SEKUSDPMI")
+            var result = new CurrencyResponse { };
+
+            using (WebClient client = new WebClient())
             {
-                result.USD = ((ExRateAPI.ResultRow)((ExRateAPI.ResultSeries)((ExRateAPI.ResultGroup)res.@return.groups.GetValue(0)).series.GetValue(0)).resultrows.GetValue(0)).value;
-            }
-            else if ((((ExRateAPI.ResultSeries)((ExRateAPI.ResultGroup)res.@return.groups.GetValue(0)).series.GetValue(0)).seriesid.Trim(' ') == "SEKEURPMI"))
-            {
-                result.EUR = ((ExRateAPI.ResultRow)((ExRateAPI.ResultSeries)((ExRateAPI.ResultGroup)res.@return.groups.GetValue(0)).series.GetValue(0)).resultrows.GetValue(0)).value;
+                client.Proxy = WebRequest.DefaultWebProxy;
+                client.Proxy.Credentials = CredentialCache.DefaultCredentials;
+
+                byte[] responsebytes = client.DownloadData($"https://www.riksbank.se/sv/statistik/sok-rantor--valutakurser/?c=cAverage&f=Day&from={today.ToShortDateString()}&g130-SEKEURPMI=on&g130-SEKUSDPMI=on&s=Comma&to=&export=txt");
+                string responsebody = Encoding.UTF8.GetString(responsebytes);
+
+
+                var data = responsebody.Split('\n');
+                foreach (var row in data)
+                {
+                    var columns = row.Split('\t');
+                    if(columns[0] == today.ToShortDateString())
+                    {
+                        if (columns[2].Contains("EUR"))
+                        {
+                            result.EUR = Convert.ToDouble(columns[3], CultureInfo.GetCultureInfo("sv-SE"));
+                        }
+                        else if (columns[2].Contains("USD"))
+                        {
+                            result.USD = Convert.ToDouble(columns[3], CultureInfo.GetCultureInfo("sv-SE"));
+                        }
+                    }
+                }
+
+
             }
 
             return result;
