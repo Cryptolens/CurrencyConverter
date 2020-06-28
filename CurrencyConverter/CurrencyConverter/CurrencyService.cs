@@ -8,9 +8,12 @@ namespace Cryptolens.CurrencyConverter
     public class CurrencyService
     {
         /// <summary>
-        /// Returns the latest exchange rates of USD and EUR (in SEK)
+        /// Returns the latest exchange rates of USD and EUR (in SEK) using Riksbankens mittkurs.
+        /// (sv. retunerar en daglig mittkurs som fås genom Riksbankens öppna API.)
         /// </summary>
-        public static object GetSEKExchangeRates()
+        /// <param name="dateOfInterest">The day whose exchange rate you want to get
+        /// (sv. datumet vars dagliga mittkurs du vill beräkna.). </param>
+        public static object GetSEKExchangeRates(DateTime? dateOfInterest = null)
         {
 
             var today = DateTime.UtcNow;
