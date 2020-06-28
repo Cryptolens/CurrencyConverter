@@ -15,8 +15,9 @@ namespace Cryptolens.CurrencyConverter
         /// (sv. datumet vars dagliga mittkurs du vill beräkna.). </param>
         public static object GetSEKExchangeRates(DateTime? dateOfInterest = null)
         {
-
             var today = DateTime.UtcNow;
+
+            if (dateOfInterest.HasValue) { today = dateOfInterest.Value; }
 
             if(today.DayOfWeek == DayOfWeek.Saturday)
             {
